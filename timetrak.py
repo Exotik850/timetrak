@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 import argparse
 import sys
+import tempfile
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -58,7 +59,7 @@ class Task:
 class TimeKeeper:
     """Main class for handling time tracking operations."""
 
-    def __init__(self, log_file: Path):
+    def __init__(self, log_file: Path | None = None):
         """
         Initialize TimeKeeper with log file path.
 
@@ -241,17 +242,38 @@ def parse_args() -> argparse.Namespace:
         "--file",
         "-f",
         type=Path,
-        default=Path("./timekeep.log"),
+        nargs="?",
+        default=None,
         help="Path to log file",
     )
     return parser.parse_args()
+  
+  
+def delta_to_str(t: timedelta) -> str:
+    """Convert a timedelta to a human-readable string."""
+    days, hours, minutes, seconds = (
+      t.days,
+      t.seconds // 3600,
+      (t.seconds // 60) % 60,
+      t.seconds % 60,
+    )
+    parts = []
+    if days: parts.append(f"{days} days")
+    if hours: parts.append(f"{hours} hours")
+    if minutes: parts.append(f"{minutes} minutes")
+    if seconds: parts.append(f"{seconds} seconds")
+    return ", ".join(parts) if parts else "0 seconds"
+  
+
+def temp_path() -> Path:
+    return Path(tempfile.gettempdir()) / "_timetrak.log"
 
 
 def main() -> None:
     """Main entry point for the CLI application."""
     try:
         args = parse_args()
-        keeper = TimeKeeper(args.file)
+        keeper = TimeKeeper(args.file or temp_path())
 
         if args.action == "start":
             keeper.start_task(args.project)
@@ -304,21 +326,6 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         sys.exit(1)
-
-def delta_to_str(t: timedelta) -> str:
-    """Convert a timedelta to a human-readable string."""
-    days, hours, minutes, seconds = (
-      t.days,
-      t.seconds // 3600,
-      (t.seconds // 60) % 60,
-      t.seconds % 60,
-    )
-    parts = []
-    if days: parts.append(f"{days} days")
-    if hours: parts.append(f"{hours} hours")
-    if minutes: parts.append(f"{minutes} minutes")
-    if seconds: parts.append(f"{seconds} seconds")
-    return ", ".join(parts) if parts else "0 seconds"
 
 if __name__ == "__main__":
     main()
