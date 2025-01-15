@@ -1,1 +1,4 @@
 timekeep.log
+/dist
+/build
+*.egg-info
