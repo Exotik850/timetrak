@@ -47,7 +47,7 @@ class Task:
         if self.project:
             entry += f", Project: {self.project}"
         return entry
-      
+
     @property
     def duration(self) -> Optional[timedelta]:
         """Calculate task duration if the task is completed."""
@@ -227,6 +227,17 @@ class TimeKeeper:
                     logger.warning(f"Skipping invalid log entry at line {idx + 1}")
         return tasks
 
+    def clear_tasks(self, project: Optional[str] = None) -> None:
+        lines = self.log_file.read_text().splitlines()
+        kept = []
+        for line in lines:
+            if project and f"Project: {project}" in line:
+                continue
+            if not project:
+                continue
+            kept.append(line)
+        self.log_file.write_text("\n".join(kept) + ("\n" if kept else ""))
+
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -235,7 +246,9 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "action", choices=["start", "stop", "status", "info"], help="Action to perform"
+        "action",
+        choices=["start", "stop", "status", "info", "clear"],
+        help="Action to perform",
     )
     parser.add_argument("--project", "-p", help="Project name for filtering tasks")
     parser.add_argument(
@@ -247,23 +260,27 @@ def parse_args() -> argparse.Namespace:
         help="Path to log file",
     )
     return parser.parse_args()
-  
-  
+
+
 def delta_to_str(t: timedelta) -> str:
     """Convert a timedelta to a human-readable string."""
     days, hours, minutes, seconds = (
-      t.days,
-      t.seconds // 3600,
-      (t.seconds // 60) % 60,
-      t.seconds % 60,
+        t.days,
+        t.seconds // 3600,
+        (t.seconds // 60) % 60,
+        t.seconds % 60,
     )
     parts = []
-    if days: parts.append(f"{days} days")
-    if hours: parts.append(f"{hours} hours")
-    if minutes: parts.append(f"{minutes} minutes")
-    if seconds: parts.append(f"{seconds} seconds")
+    if days:
+        parts.append(f"{days} days")
+    if hours:
+        parts.append(f"{hours} hours")
+    if minutes:
+        parts.append(f"{minutes} minutes")
+    if seconds:
+        parts.append(f"{seconds} seconds")
     return ", ".join(parts) if parts else "0 seconds"
-  
+
 
 def temp_path() -> Path:
     return Path(tempfile.gettempdir()) / "_timetrak.log"
@@ -309,7 +326,7 @@ def main() -> None:
 
             print("\nCompleted tasks:")
             for task in completed_tasks:
-                print(task.to_log_entry(), end='')
+                print(task.to_log_entry(), end="")
                 dur = task.duration
                 if dur:
                     print(f" ({delta_to_str(dur)})")
@@ -322,10 +339,14 @@ def main() -> None:
                 print("\nActive tasks:")
                 for task in active_tasks:
                     print(task.to_log_entry())
+        elif args.action == "clear":
+            keeper.clear_tasks(args.project)
+            print("Cleared tasks" + (f" for '{args.project}'" if args.project else ""))
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
